@@ -359,6 +359,7 @@ def resnet_main(
   run_config = tf.estimator.RunConfig(
       train_distribute=distribution_strategy, session_config=session_config)
 
+  #classifier = tf.estimator.Estimator(model_dir='/home/ubuntu/tf-bench/models/pretrained/20180601_resnet_v1_imagenet_savedmodel/1527888778')
   classifier = tf.estimator.Estimator(
       model_fn=model_function, model_dir=flags_obj.model_dir, config=run_config,
       params={
@@ -407,6 +408,12 @@ def resnet_main(
 
   total_training_cycle = (flags_obj.train_epochs //
                           flags_obj.epochs_between_evals)
+
+  tf.logging.info('Starting to evaluate.')
+  eval_results = classifier.evaluate(input_fn=input_fn_eval, steps=flags_obj.max_train_steps)
+  benchmark_logger.log_evaluation_result(eval_results)
+  print(eval_results['accuracy'])
+  """
   for cycle_index in range(total_training_cycle):
     tf.logging.info('Starting a training cycle: %d/%d',
                     cycle_index, total_training_cycle)
@@ -436,6 +443,7 @@ def resnet_main(
     input_receiver_fn = export.build_tensor_serving_input_receiver_fn(
         shape, batch_size=flags_obj.batch_size)
     classifier.export_savedmodel(flags_obj.export_dir, input_receiver_fn)
+  """
 
 
 def define_resnet_flags(resnet_size_choices=None):

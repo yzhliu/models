@@ -176,7 +176,7 @@ def _bytes_feature(value):
   return tf.train.Feature(bytes_list=tf.train.BytesList(value=[value]))
 
 
-def _convert_to_example(filename, image_buffer, label, synset, human, bbox,
+def _convert_to_example(filename, image_buffer, label, synset, human,
                         height, width):
   """Build an Example proto for an example.
 
@@ -194,6 +194,7 @@ def _convert_to_example(filename, image_buffer, label, synset, human, bbox,
   Returns:
     Example proto
   """
+  """
   xmin = []
   ymin = []
   xmax = []
@@ -203,6 +204,7 @@ def _convert_to_example(filename, image_buffer, label, synset, human, bbox,
     # pylint: disable=expression-not-assigned
     [l.append(point) for l, point in zip([xmin, ymin, xmax, ymax], b)]
     # pylint: enable=expression-not-assigned
+  """
 
   colorspace = 'RGB'
   channels = 3
@@ -216,11 +218,11 @@ def _convert_to_example(filename, image_buffer, label, synset, human, bbox,
       'image/class/label': _int64_feature(label),
       'image/class/synset': _bytes_feature(synset),
       'image/class/text': _bytes_feature(human),
-      'image/object/bbox/xmin': _float_feature(xmin),
-      'image/object/bbox/xmax': _float_feature(xmax),
-      'image/object/bbox/ymin': _float_feature(ymin),
-      'image/object/bbox/ymax': _float_feature(ymax),
-      'image/object/bbox/label': _int64_feature([label] * len(xmin)),
+      #'image/object/bbox/xmin': _float_feature(xmin),
+      #'image/object/bbox/xmax': _float_feature(xmax),
+      #'image/object/bbox/ymin': _float_feature(ymin),
+      #'image/object/bbox/ymax': _float_feature(ymax),
+      #'image/object/bbox/label': _int64_feature([label] * len(xmin)),
       'image/format': _bytes_feature(image_format),
       'image/filename': _bytes_feature(os.path.basename(filename)),
       'image/encoded': _bytes_feature(image_buffer)}))
@@ -341,7 +343,7 @@ def _process_image(filename, coder):
 
 
 def _process_image_files_batch(coder, thread_index, ranges, name, filenames,
-                               synsets, labels, humans, bboxes, num_shards):
+                               synsets, labels, humans, num_shards):
   """Processes and saves list of images as TFRecord in 1 thread.
 
   Args:
@@ -386,12 +388,12 @@ def _process_image_files_batch(coder, thread_index, ranges, name, filenames,
       label = labels[i]
       synset = synsets[i]
       human = humans[i]
-      bbox = bboxes[i]
+      #bbox = bboxes[i]
 
       image_buffer, height, width = _process_image(filename, coder)
 
       example = _convert_to_example(filename, image_buffer, label,
-                                    synset, human, bbox,
+                                    synset, human,
                                     height, width)
       writer.write(example.SerializeToString())
       shard_counter += 1
@@ -413,7 +415,7 @@ def _process_image_files_batch(coder, thread_index, ranges, name, filenames,
 
 
 def _process_image_files(name, filenames, synsets, labels, humans,
-                         bboxes, num_shards):
+                         num_shards):
   """Process and save list of images as TFRecord of Example protos.
 
   Args:
@@ -430,7 +432,7 @@ def _process_image_files(name, filenames, synsets, labels, humans,
   assert len(filenames) == len(synsets)
   assert len(filenames) == len(labels)
   assert len(filenames) == len(humans)
-  assert len(filenames) == len(bboxes)
+  #assert len(filenames) == len(bboxes)
 
   # Break all images into batches with a [ranges[i][0], ranges[i][1]].
   spacing = np.linspace(0, len(filenames), FLAGS.num_threads + 1).astype(np.int)
@@ -452,7 +454,7 @@ def _process_image_files(name, filenames, synsets, labels, humans,
   threads = []
   for thread_index in range(len(ranges)):
     args = (coder, thread_index, ranges, name, filenames,
-            synsets, labels, humans, bboxes, num_shards)
+            synsets, labels, humans, num_shards)
     t = threading.Thread(target=_process_image_files_batch, args=args)
     t.start()
     threads.append(t)
@@ -583,8 +585,7 @@ def _find_image_bounding_boxes(filenames, image_to_bboxes):
   return bboxes
 
 
-def _process_dataset(name, directory, num_shards, synset_to_human,
-                     image_to_bboxes):
+def _process_dataset(name, directory, num_shards, synset_to_human):
   """Process a complete data set and save it as a TFRecord.
 
   Args:
@@ -598,9 +599,9 @@ def _process_dataset(name, directory, num_shards, synset_to_human,
   """
   filenames, synsets, labels = _find_image_files(directory, FLAGS.labels_file)
   humans = _find_human_readable_labels(synsets, synset_to_human)
-  bboxes = _find_image_bounding_boxes(filenames, image_to_bboxes)
+  #bboxes = _find_image_bounding_boxes(filenames, image_to_bboxes)
   _process_image_files(name, filenames, synsets, labels,
-                       humans, bboxes, num_shards)
+                       humans, num_shards)
 
 
 def _build_synset_lookup(imagenet_metadata_file):
@@ -693,13 +694,13 @@ def main(unused_argv):
 
   # Build a map from synset to human-readable label.
   synset_to_human = _build_synset_lookup(FLAGS.imagenet_metadata_file)
-  image_to_bboxes = _build_bounding_box_lookup(FLAGS.bounding_box_file)
+  #image_to_bboxes = _build_bounding_box_lookup(FLAGS.bounding_box_file)
 
   # Run it!
   _process_dataset('validation', FLAGS.validation_directory,
-                   FLAGS.validation_shards, synset_to_human, image_to_bboxes)
-  _process_dataset('train', FLAGS.train_directory, FLAGS.train_shards,
-                   synset_to_human, image_to_bboxes)
+                   FLAGS.validation_shards, synset_to_human)
+  #_process_dataset('train', FLAGS.train_directory, FLAGS.train_shards,
+  #                 synset_to_human, image_to_bboxes)
 
 
 if __name__ == '__main__':

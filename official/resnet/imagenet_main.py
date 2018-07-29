@@ -18,6 +18,9 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
+import sys
+sys.path.append('/home/ubuntu/tf-bench/models')
+
 import os
 
 from absl import app as absl_app
@@ -104,29 +107,10 @@ def _parse_example_proto(example_serialized):
   }
   sparse_float32 = tf.VarLenFeature(dtype=tf.float32)
   # Sparse features in Example proto.
-  feature_map.update(
-      {k: sparse_float32 for k in ['image/object/bbox/xmin',
-                                   'image/object/bbox/ymin',
-                                   'image/object/bbox/xmax',
-                                   'image/object/bbox/ymax']})
-
   features = tf.parse_single_example(example_serialized, feature_map)
   label = tf.cast(features['image/class/label'], dtype=tf.int32)
 
-  xmin = tf.expand_dims(features['image/object/bbox/xmin'].values, 0)
-  ymin = tf.expand_dims(features['image/object/bbox/ymin'].values, 0)
-  xmax = tf.expand_dims(features['image/object/bbox/xmax'].values, 0)
-  ymax = tf.expand_dims(features['image/object/bbox/ymax'].values, 0)
-
-  # Note that we impose an ordering of (y, x) just to make life difficult.
-  bbox = tf.concat([ymin, xmin, ymax, xmax], 0)
-
-  # Force the variable number of bounding boxes into the shape
-  # [1, num_boxes, coords].
-  bbox = tf.expand_dims(bbox, 0)
-  bbox = tf.transpose(bbox, [0, 2, 1])
-
-  return features['image/encoded'], label, bbox
+  return features['image/encoded'], label
 
 
 def parse_record(raw_record, is_training):
@@ -143,11 +127,10 @@ def parse_record(raw_record, is_training):
   Returns:
     Tuple with processed image tensor and one-hot-encoded label tensor.
   """
-  image_buffer, label, bbox = _parse_example_proto(raw_record)
+  image_buffer, label = _parse_example_proto(raw_record)
 
   image = imagenet_preprocessing.preprocess_image(
       image_buffer=image_buffer,
-      bbox=bbox,
       output_height=_DEFAULT_IMAGE_SIZE,
       output_width=_DEFAULT_IMAGE_SIZE,
       num_channels=_NUM_CHANNELS,
