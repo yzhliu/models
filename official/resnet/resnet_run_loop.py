@@ -306,8 +306,10 @@ def resnet_model_fn(features, labels, mode, model_class,
     # Metrics are currently not compatible with distribution strategies during
     # training. This does not affect the overall performance of the model.
     accuracy = (tf.no_op(), tf.constant(0))
+  top5_acc = tf.metrics.mean(tf.cast(tf.nn.in_top_k(predictions=logits, targets=tf.squeeze(labels), k=5), tf.float32))
 
   metrics = {'accuracy': accuracy}
+  metrics['top5_acc'] = top5_acc
 
   # Create a tensor named train_accuracy for logging purposes
   tf.identity(accuracy[1], name='train_accuracy')
@@ -412,7 +414,6 @@ def resnet_main(
   tf.logging.info('Starting to evaluate.')
   eval_results = classifier.evaluate(input_fn=input_fn_eval, steps=flags_obj.max_train_steps)
   benchmark_logger.log_evaluation_result(eval_results)
-  print(eval_results['accuracy'])
   """
   for cycle_index in range(total_training_cycle):
     tf.logging.info('Starting a training cycle: %d/%d',
